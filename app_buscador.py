@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from scjn_api import SJFAPI
+import ia_helper
 import io
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -103,7 +104,13 @@ st.markdown('<p class="sub-header">Accede al Semanario Judicial de la Federació
 # Sidebar for filters
 with st.sidebar:
     st.header("🔍 Filtros de Búsqueda")
-    termino = st.text_input("Palabras Clave", placeholder="Ej. amparo directo", help="Introduce los términos a buscar en el rubro o texto.")
+    termino = st.text_input("Palabras Clave o Pregunta", placeholder="Ej. jurisprudencias de pensión alimenticia en oaxaca", help="Ingresa términos exactos o haz una búsqueda con IA.")
+    
+    st.subheader("Búsqueda Inteligente (IA)")
+    usar_ia = st.toggle("Activar Búsqueda con IA", help="Traduce lenguaje natural a términos de búsqueda óptimos para la SCJN.")
+    api_key_gemini = ""
+    if usar_ia:
+        api_key_gemini = st.text_input("API Key de Gemini", type="password", help="Obtén tu clave gratuita en Google AI Studio.")
     
     st.subheader("Configuración")
     resultados_por_pagina = st.slider("Resultados a mostrar", min_value=10, max_value=50, value=20, step=10)
@@ -113,10 +120,28 @@ with st.sidebar:
 # Main content area
 if buscar_btn:
     if not termino:
-        st.warning("⚠️ Por favor, introduce al menos una palabra clave para realizar la búsqueda.")
+        st.warning("⚠️ Por favor, introduce al menos una palabra clave o pregunta para realizar la búsqueda.")
+    elif usar_ia and not api_key_gemini:
+        st.error("🔑 Necesitas ingresar una API Key de Gemini para usar la Búsqueda Inteligente.")
     else:
-        with st.spinner("Conectando con la base de datos de la SCJN..."):
-            resultados = api.buscar_tesis(termino, page=0, size=resultados_por_pagina)
+        with st.spinner("Analizando y buscando en la SCJN..."):
+            termino_busqueda = termino
+            
+            # Si el usuario quiere usar IA
+            if usar_ia and api_key_gemini:
+                ia_helper.configurar_gemini(api_key_gemini)
+                st.info("🧠 **Procesando lenguaje natural con Gemini...**")
+                resultado_ia = ia_helper.procesar_busqueda_ia(termino)
+                
+                if resultado_ia:
+                    termino_busqueda = resultado_ia.get('terminos_optimizados', termino)
+                    with st.expander("🤖 Análisis de la IA sobre tu búsqueda", expanded=True):
+                        st.markdown(f"**Intención detectada y términos generados:** `{termino_busqueda}`")
+                        st.write(resultado_ia.get('explicacion', ''))
+                else:
+                    st.error("Hubo un problema al procesar la IA. Cayendo de vuelta a búsqueda normal.")
+            
+            resultados = api.buscar_tesis(termino_busqueda, page=0, size=resultados_por_pagina)
             
             if resultados and 'documents' in resultados and len(resultados['documents']) > 0:
                 total_encontrados = resultados.get('total', 0)
