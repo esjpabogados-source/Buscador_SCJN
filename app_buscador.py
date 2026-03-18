@@ -132,14 +132,16 @@ if buscar_btn:
                 ia_helper.configurar_gemini(api_key_gemini)
                 st.info("🧠 **Procesando lenguaje natural con Gemini...**")
                 resultado_ia = ia_helper.procesar_busqueda_ia(termino)
-                
-                if resultado_ia:
+                if resultado_ia and "error" in resultado_ia:
+                    st.error(f"❌ Error al procesar la IA: {resultado_ia['error']}")
+                    st.info("Revisa que tu API Key sea correcta o intenta de nuevo más tarde.")
+                elif resultado_ia:
                     termino_busqueda = resultado_ia.get('terminos_optimizados', termino)
                     with st.expander("🤖 Análisis de la IA sobre tu búsqueda", expanded=True):
                         st.markdown(f"**Intención detectada y términos generados:** `{termino_busqueda}`")
                         st.write(resultado_ia.get('explicacion', ''))
                 else:
-                    st.error("Hubo un problema al procesar la IA. Cayendo de vuelta a búsqueda normal.")
+                    st.error("Hubo un problema desconocido al procesar la IA. Cayendo de vuelta a búsqueda normal.")
             
             resultados = api.buscar_tesis(termino_busqueda, page=0, size=resultados_por_pagina)
             

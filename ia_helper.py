@@ -1,16 +1,23 @@
-import google.generativeai as genai
 import json
+from google import genai
+
+# Variable global para almacenar el cliente configurado
+_client = None
 
 def configurar_gemini(api_key):
-    genai.configure(api_key=api_key)
+    global _client
+    _client = genai.Client(api_key=api_key)
 
 def procesar_busqueda_ia(consulta_natural):
     """
     Toma una consulta en lenguaje natural y devuelve términos de búsqueda óptimos
     para la API del SJF usando Gemini.
     """
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
+    global _client
+    if not _client:
+        print("Error: Cliente Gemini no configurado.")
+        return None
+        
     prompt = f"""
     Eres un experto abogado postulante en México y especialista en búsqueda de jurisprudencia en el Semanario Judicial de la Federación (SCJN).
     El usuario va a ingresar una duda legal en lenguaje natural. Tu objetivo es extraer los conceptos clave de esa búsqueda
@@ -32,7 +39,10 @@ def procesar_busqueda_ia(consulta_natural):
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = _client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         # Parse the JSON response. Strip markdown code blocks if present.
         text = response.text.strip()
         if text.startswith('```json'):
@@ -44,4 +54,4 @@ def procesar_busqueda_ia(consulta_natural):
         return resultado
     except Exception as e:
         print(f"Error en IA: {e}")
-        return None
+        return {"error": str(e)}
